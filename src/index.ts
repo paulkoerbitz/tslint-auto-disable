@@ -235,7 +235,7 @@ if (argv.typeCheck) {
 
 const outputStream: NodeJS.WritableStream = argv.out === undefined
     ? process.stdout
-    : fs.createWriteStream(argv.out, {flags: "w+", mode: 420});
+    : fs.createWriteStream(argv.out, { flags: "w+", mode: 420 });
 
 export interface Options {
     /**
@@ -404,7 +404,7 @@ function filterFiles(files: string[], patterns: string[], include: boolean): str
         return include ? [] : files;
     }
     // `glob` always enables `dot` for ignore patterns
-    const matcher = patterns.map((pattern) => new Minimatch(pattern, {dot: !include}));
+    const matcher = patterns.map((pattern) => new Minimatch(pattern, { dot: !include }));
     return files.filter((file) => include === matcher.some((pattern) => pattern.match(file)));
 }
 
@@ -460,10 +460,12 @@ async function doLinting(options: Options, files: string[], program: ts.Program 
     const result = linter.getResult();
 
     const filesAndFixes = createMultiMap(result.failures, (input) => {
-        return [
-            input.getFileName(),
-            Replacement.appendText(input.getStartPosition().getPosition(), "/* tslint:disable-next-line */")
-        ]
+        const fileName = input.getFileName();
+        const line = input.getStartPosition().getLineAndCharacter().line;
+        const sourceFile = program!.getSourceFile(fileName)!;
+        const insertPos = sourceFile.getLineStarts()[line];
+        const fix = Replacement.appendText(insertPos, "\n/* tslint:disable-next-line */\n");
+        return [fileName, fix];
     });
 
     filesAndFixes.forEach((fixes, filename) => {
@@ -471,7 +473,7 @@ async function doLinting(options: Options, files: string[], program: ts.Program 
         const updatedSource = Replacement.applyAll(source, fixes);
         console.log(`Writing updated source for ${filename}`);
         fs.writeFileSync(filename, updatedSource);
-    })
+    });
 
     return result;
 
@@ -510,7 +512,7 @@ async function tryReadFile(filename: string, logger: Logger): Promise<string | u
 function showDiagnostic({ file, start, category, messageText }: ts.Diagnostic, program: ts.Program, outputAbsolutePaths?: boolean): string {
     let message = ts.DiagnosticCategory[category];
     if (file !== undefined && start !== undefined) {
-        const {line, character} = file.getLineAndCharacterOfPosition(start);
+        const { line, character } = file.getLineAndCharacterOfPosition(start);
         const currentDirectory = program.getCurrentDirectory();
         const filePath = outputAbsolutePaths
             ? path.resolve(currentDirectory, file.fileName)
@@ -570,7 +572,7 @@ run(
         process.exitCode = 1;
     });
 
-function optionUsageTag({short, name}: Option) {
+function optionUsageTag({ short, name }: Option) {
     return short !== undefined ? `-${short}, --${name}` : `--${name}`;
 }
 
