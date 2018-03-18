@@ -9,6 +9,6 @@
         "no-console": false,
         "no-shadowed-variable": false,
         "max-line-length": false,
-        "triple-equals": [true, "allow-undefined-check"],
+        "triple-equals": [true, "allow-undefined-check"]
     }
 }
