@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as glob from "glob";
 import { filter as createMinimatchFilter, Minimatch } from "minimatch";
 import * as path from "path";
-import tsl, { Configuration, Linter, LintResult, Utils, RuleFailure, Replacement } from "tslint";
+import tsl, { Configuration, Linter, LintResult, Replacement, RuleFailure, Utils } from "tslint";
 import * as ts from "typescript";
 // import { run } from "./runner";
 // import { arrayify, dedent } from "./utils";
