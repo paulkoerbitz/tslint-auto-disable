@@ -264,21 +264,6 @@ function filterFiles(files: string[], patterns: string[], include: boolean): str
     return files.filter((file) => include === matcher.some((pattern) => pattern.match(file)));
 }
 
-// function resolveGlobs(files: string[], ignore: string[], outputAbsolutePaths: boolean | undefined, logger: Logger): string[] {
-//     const results = flatMap(
-//         files,
-//         (file) => glob.sync(trimSingleQuotes(file), { ignore, nodir: true }),
-//     );
-//     // warn if `files` contains non-existent files, that are not patters and not excluded by any of the exclude patterns
-//     for (const file of filterFiles(files, ignore, false)) {
-//         if (!glob.hasMagic(file) && !results.some(createMinimatchFilter(file))) {
-//             logger.error(`'${file}' does not exist. This will be an error in TSLint 6.\n`); // TODO make this an error in v6.0.0
-//         }
-//     }
-//     const cwd = process.cwd();
-//     return results.map((file: any) => outputAbsolutePaths ? path.resolve(cwd, file) : path.relative(cwd, file));
-// }
-
 async function doLinting(options: Options, files: string[], program: ts.Program | undefined, logger: Logger): Promise<LintResult> {
     const linter = new Linter(
         {
@@ -328,7 +313,7 @@ export const insertTslintDisableComments = (program: ts.Program, result: LintRes
         const line = input.getStartPosition().getLineAndCharacter().line;
         const sourceFile = program.getSourceFile(fileName)!;
         const insertPos = sourceFile.getLineStarts()[line];
-        const fix = Replacement.appendText(insertPos, "\n/* tslint:disable-next-line */\n");
+        const fix = Replacement.appendText(insertPos, "// tslint:disable-next-line\n");
         return [fileName, fix];
     });
 

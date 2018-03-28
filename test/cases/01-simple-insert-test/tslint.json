@@ -1,0 +1,6 @@
+{
+    "defaultSeverity": "error",
+    "rules": {
+        "interface-name": true
+    }
+}
