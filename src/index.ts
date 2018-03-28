@@ -3,11 +3,11 @@ import * as fs from "fs";
 import * as glob from "glob";
 import { filter as createMinimatchFilter, Minimatch } from "minimatch";
 import * as path from "path";
-import { Configuration, Linter, LintResult, Replacement, Utils } from "tslint";
+import { Configuration, Linter, LintResult, Replacement, Utils, RuleFailure } from "tslint";
 import * as ts from "typescript";
 
 const { findConfiguration } = Configuration;
-const { dedent, arrayify, flatMap } = Utils;
+const { dedent, arrayify } = Utils;
 
 interface Argv {
     project: string;
@@ -308,19 +308,27 @@ async function doLinting(options: Options, files: string[], program: ts.Program 
 }
 
 export const insertTslintDisableComments = (program: ts.Program, result: LintResult) => {
-    const filesAndFixes = createMultiMap(result.failures, (input) => {
+    const filesAndFixes = new Map<string, Array<[number, Replacement]>>();
+    result.failures.forEach((input) => {
         const fileName = input.getFileName();
         const line = input.getStartPosition().getLineAndCharacter().line;
         const sourceFile = program.getSourceFile(fileName)!;
         const insertPos = sourceFile.getLineStarts()[line];
         const fix = Replacement.appendText(insertPos, "// tslint:disable-next-line\n");
-        return [fileName, fix];
+        const fixes = filesAndFixes.get(fileName);
+        if (fixes == undefined) {
+            filesAndFixes.set(fileName, [[line, fix]]);
+        } else if (fixes.findIndex((oldfix) => oldfix[0] === line) < 0) {
+            fixes.push([line, fix]);
+            filesAndFixes.set(fileName, fixes);
+        }
+        // otherwise there is already a fix for the current line
     });
 
     const updatedSources = new Map<string, string>();
     filesAndFixes.forEach((fixes, filename) => {
         const source = fs.readFileSync(filename).toString();
-        updatedSources.set(filename, Replacement.applyAll(source, fixes));
+        updatedSources.set(filename, Replacement.applyAll(source, fixes.map((x) => x[1])));
     });
 
     return updatedSources;
@@ -428,21 +436,4 @@ function optionParam(option: Option) {
 function collect(val: string, memo: string[]) {
     memo.push(val);
     return memo;
-}
-
-function createMultiMap<T, K, V>(inputs: T[], getPair: (input: T) => [K, V] | undefined): Map<K, V[]> {
-    const map = new Map<K, V[]>();
-    for (const input of inputs) {
-        const pair = getPair(input);
-        if (pair !== undefined) {
-            const [k, v] = pair;
-            const vs = map.get(k);
-            if (vs !== undefined) {
-                vs.push(v);
-            } else {
-                map.set(k, [v]);
-            }
-        }
-    }
-    return map;
 }
