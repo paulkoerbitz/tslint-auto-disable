@@ -7,20 +7,26 @@
   "author": "Paul Koerbitz <paul.koerbitz@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/chai": "^4.1.2",
+    "@types/commander": "^2.12.2",
+    "@types/glob": "^5.0.35",
+    "@types/lodash": "^4.14.106",
+    "@types/minimatch": "^3.0.3",
+    "@types/node": "^9.6.0",
+    "chai": "^4.1.2",
+    "commander": "^2.15.1",
+    "lodash": "^4.17.5",
     "ts-node": "^5.0.1",
     "tslint": "^5.9.1",
     "typescript": "^2.8.0-dev.20180316"
   },
   "dependencies": {
-    "@types/glob": "^5.0.35",
-    "@types/minimatch": "^3.0.3",
-    "@types/node": "^9.4.7",
-    "commander": "^2.15.0",
     "glob": "^7.1.2",
     "minimatch": "^3.0.4"
   },
   "scripts": {
-      "build": "tsc",
-      "prepublish": "npm run build"
+    "test": "ts-node test/runner.ts",
+    "build": "tsc",
+    "prepublish": "npm run build"
   }
 }

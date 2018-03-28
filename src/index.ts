@@ -1,19 +1,19 @@
-import * as commander from "commander";
+import commander from "commander";
 import * as fs from "fs";
 import * as glob from "glob";
 import { filter as createMinimatchFilter, Minimatch } from "minimatch";
 import * as path from "path";
-import tsl, { Configuration, Linter, LintResult, Replacement, RuleFailure, Utils } from "tslint";
+import { Configuration, Linter, LintResult, Replacement, Utils } from "tslint";
 import * as ts from "typescript";
 
 const { findConfiguration } = Configuration;
 const { dedent, arrayify, flatMap } = Utils;
 
 interface Argv {
-    config?: string;
+    project: string;
     exclude: string[];
+    config?: string;
     help?: boolean;
-    project?: string;
     rulesDir?: string;
     format?: string;
     test?: boolean;
@@ -140,10 +140,10 @@ if (parsed.unknown.length !== 0) {
 }
 const argv = commander.opts() as any as Argv;
 
-if (!(argv.test !== undefined || argv.project !== undefined || commander.args.length > 0)) {
-    console.error("No files specified. Use --project to lint a project folder.");
-    process.exit(1);
-}
+// if (!(argv.test !== undefined || argv.project !== undefined || commander.args.length > 0)) {
+//     console.error("No files specified. Use --project to lint a project folder.");
+//     process.exit(1);
+// }
 
 export interface Options {
     /**
@@ -164,7 +164,7 @@ export interface Options {
     /**
      * tsconfig.json file.
      */
-    project?: string;
+    project: string;
 
     /**
      * Rules directory paths.
@@ -203,36 +203,28 @@ async function runWorker(options: Options, logger: Logger): Promise<Status> {
         throw new Error(`Invalid option for configuration: ${options.config}`);
     }
 
-    const { output, errorCount } = await runLinter(options, logger);
-    if (output && output.trim()) {
-        logger.log(`${output}\n`);
-    }
-    return errorCount === 0 ? Status.Ok : Status.LintError;
+    const updatedSources = await runReplacement(options, logger);
+    writeUpdateSourceFiles(updatedSources);
+    return Status.Ok;
 }
 
-async function runLinter(options: Options, logger: Logger): Promise<LintResult> {
+export async function runReplacement(options: Options, logger: Logger): Promise<Map<string, string>> {
     const { files, program } = resolveFilesAndProgram(options, logger);
-    // if type checking, run the type checker
-    if (program) {
-        const diagnostics = ts.getPreEmitDiagnostics(program);
-        if (diagnostics.length !== 0) {
-            const message = diagnostics.map((d) => showDiagnostic(d, program)).join("\n");
-            throw new Error(message);
-        }
+    const diagnostics = ts.getPreEmitDiagnostics(program);
+    if (diagnostics.length !== 0) {
+        const message = diagnostics.map((d) => showDiagnostic(d, program)).join("\n");
+        throw new Error(message);
     }
-    return doLinting(options, files, program, logger);
+    const lintResult = await doLinting(options, files, program, logger);
+    return insertTslintDisableComments(program, lintResult);
 }
 
 function resolveFilesAndProgram(
     { files, project, exclude }: Options,
     logger: Logger,
-): { files: string[]; program?: ts.Program } {
+): { files: string[]; program: ts.Program } {
     // remove single quotes which break matching on Windows when glob is passed in single quotes
     exclude = exclude.map(trimSingleQuotes);
-
-    if (project === undefined) {
-        return { files: resolveGlobs(files, exclude, false, logger) };
-    }
 
     const projectPath = findTsconfig(project);
     if (projectPath === undefined) {
@@ -272,20 +264,20 @@ function filterFiles(files: string[], patterns: string[], include: boolean): str
     return files.filter((file) => include === matcher.some((pattern) => pattern.match(file)));
 }
 
-function resolveGlobs(files: string[], ignore: string[], outputAbsolutePaths: boolean | undefined, logger: Logger): string[] {
-    const results = flatMap(
-        files,
-        (file) => glob.sync(trimSingleQuotes(file), { ignore, nodir: true }),
-    );
-    // warn if `files` contains non-existent files, that are not patters and not excluded by any of the exclude patterns
-    for (const file of filterFiles(files, ignore, false)) {
-        if (!glob.hasMagic(file) && !results.some(createMinimatchFilter(file))) {
-            logger.error(`'${file}' does not exist. This will be an error in TSLint 6.\n`); // TODO make this an error in v6.0.0
-        }
-    }
-    const cwd = process.cwd();
-    return results.map((file: any) => outputAbsolutePaths ? path.resolve(cwd, file) : path.relative(cwd, file));
-}
+// function resolveGlobs(files: string[], ignore: string[], outputAbsolutePaths: boolean | undefined, logger: Logger): string[] {
+//     const results = flatMap(
+//         files,
+//         (file) => glob.sync(trimSingleQuotes(file), { ignore, nodir: true }),
+//     );
+//     // warn if `files` contains non-existent files, that are not patters and not excluded by any of the exclude patterns
+//     for (const file of filterFiles(files, ignore, false)) {
+//         if (!glob.hasMagic(file) && !results.some(createMinimatchFilter(file))) {
+//             logger.error(`'${file}' does not exist. This will be an error in TSLint 6.\n`); // TODO make this an error in v6.0.0
+//         }
+//     }
+//     const cwd = process.cwd();
+//     return results.map((file: any) => outputAbsolutePaths ? path.resolve(cwd, file) : path.relative(cwd, file));
+// }
 
 async function doLinting(options: Options, files: string[], program: ts.Program | undefined, logger: Logger): Promise<LintResult> {
     const linter = new Linter(
@@ -319,25 +311,7 @@ async function doLinting(options: Options, files: string[], program: ts.Program 
         }
     }
 
-    const result = linter.getResult();
-
-    const filesAndFixes = createMultiMap(result.failures, (input) => {
-        const fileName = input.getFileName();
-        const line = input.getStartPosition().getLineAndCharacter().line;
-        const sourceFile = program!.getSourceFile(fileName)!;
-        const insertPos = sourceFile.getLineStarts()[line];
-        const fix = Replacement.appendText(insertPos, "\n/* tslint:disable-next-line */\n");
-        return [fileName, fix];
-    });
-
-    filesAndFixes.forEach((fixes, filename) => {
-        const source = fs.readFileSync(filename).toString();
-        const updatedSource = Replacement.applyAll(source, fixes);
-        console.log(`Writing updated source for ${filename}`);
-        fs.writeFileSync(filename, updatedSource);
-    });
-
-    return result;
+    return linter.getResult();
 
     function isFileExcluded(filepath: string) {
         if (configFile === undefined || configFile.linterOptions == undefined || configFile.linterOptions.exclude == undefined) {
@@ -347,6 +321,31 @@ async function doLinting(options: Options, files: string[], program: ts.Program 
         return configFile.linterOptions.exclude.some((pattern: any) => new Minimatch(pattern).match(fullPath));
     }
 }
+
+export const insertTslintDisableComments = (program: ts.Program, result: LintResult) => {
+    const filesAndFixes = createMultiMap(result.failures, (input) => {
+        const fileName = input.getFileName();
+        const line = input.getStartPosition().getLineAndCharacter().line;
+        const sourceFile = program.getSourceFile(fileName)!;
+        const insertPos = sourceFile.getLineStarts()[line];
+        const fix = Replacement.appendText(insertPos, "\n/* tslint:disable-next-line */\n");
+        return [fileName, fix];
+    });
+
+    const updatedSources = new Map<string, string>();
+    filesAndFixes.forEach((fixes, filename) => {
+        const source = fs.readFileSync(filename).toString();
+        updatedSources.set(filename, Replacement.applyAll(source, fixes));
+    });
+
+    return updatedSources;
+};
+
+export const writeUpdateSourceFiles = (updatedSources: Map<string, string>) => {
+    updatedSources.forEach((source, filename) => {
+        fs.writeFileSync(filename, source);
+    });
+};
 
 /** Read a file, but return undefined if it is an MPEG '.ts' file. */
 async function tryReadFile(filename: string, logger: Logger): Promise<string | undefined> {

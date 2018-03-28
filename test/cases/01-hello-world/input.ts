@@ -1,0 +1,3 @@
+interface MyInterface {
+    foo: string;
+}
