@@ -10,6 +10,7 @@
         "no-shadowed-variable": false,
         "max-line-length": false,
         "triple-equals": [true, "allow-undefined-check"],
-        "trailing-comma": false
+        "trailing-comma": false,
+        "arrow-parens": false
     }
 }
