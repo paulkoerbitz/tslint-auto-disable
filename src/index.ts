@@ -141,7 +141,11 @@ if (parsed.unknown.length !== 0) {
 }
 const argv = (commander.opts() as any) as Argv;
 
-if (argv.project === undefined && commander.args.length <= 0) {
+if (
+    (global as any).RUN_FROM_COMMAND_LINE &&
+    argv.project === undefined &&
+    commander.args.length <= 0
+) {
     console.error(
         "No files specified. Use --project to lint a project folder."
     );

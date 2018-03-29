@@ -1,2 +1,3 @@
 #!/usr/bin/env node
+global.RUN_FROM_COMMAND_LINE = true;
 require("../dist/src/index");
