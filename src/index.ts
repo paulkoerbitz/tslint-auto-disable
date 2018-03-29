@@ -117,23 +117,34 @@ for (const option of options) {
 
 commander.on("--help", () => {
     const indent = "\n        ";
-    const optionDetails = options.concat(builtinOptions).map((o) => {
-        const descr = o.description.startsWith("\n") ? o.description.replace(/\n/g, indent) : indent + o.description;
+    const optionDetails = options.concat(builtinOptions).map(o => {
+        const descr = o.description.startsWith("\n")
+            ? o.description.replace(/\n/g, indent)
+            : indent + o.description;
         return `${optionUsageTag(o)}:${descr}`;
     });
-    console.log(`tslint accepts the following commandline options:\n\n    ${optionDetails.join("\n\n    ")}\n\n`);
+    console.log(
+        `tslint accepts the following commandline options:\n\n    ${optionDetails.join(
+            "\n\n    "
+        )}\n\n`
+    );
 });
 
 // Hack to get unknown option errors to work. https://github.com/visionmedia/commander.js/pull/121
 const parsed = commander.parseOptions(process.argv.slice(2));
 (commander as any).args = parsed.args;
 if (parsed.unknown.length !== 0) {
-    (commander.parseArgs as (args: string[], unknown: string[]) => void)([], parsed.unknown);
+    (commander.parseArgs as (args: string[], unknown: string[]) => void)(
+        [],
+        parsed.unknown
+    );
 }
-const argv = commander.opts() as any as Argv;
+const argv = (commander.opts() as any) as Argv;
 
 if (argv.project === undefined && commander.args.length <= 0) {
-    console.error("No files specified. Use --project to lint a project folder.");
+    console.error(
+        "No files specified. Use --project to lint a project folder."
+    );
     process.exit(1);
 }
 
@@ -200,11 +211,16 @@ async function runWorker(options: Options, logger: Logger): Promise<Status> {
     return Status.Ok;
 }
 
-export async function runReplacement(options: Options, logger: Logger): Promise<Map<string, string>> {
+export async function runReplacement(
+    options: Options,
+    logger: Logger
+): Promise<Map<string, string>> {
     const { files, program } = resolveFilesAndProgram(options, logger);
     const diagnostics = ts.getPreEmitDiagnostics(program);
     if (diagnostics.length !== 0) {
-        const message = diagnostics.map((d) => showDiagnostic(d, program)).join("\n");
+        const message = diagnostics
+            .map(d => showDiagnostic(d, program))
+            .join("\n");
         throw new Error(message);
     }
     const lintResult = await doLinting(options, files, program, logger);
@@ -213,7 +229,7 @@ export async function runReplacement(options: Options, logger: Logger): Promise<
 
 function resolveFilesAndProgram(
     { files, project, exclude }: Options,
-    logger: Logger,
+    logger: Logger
 ): { files: string[]; program: ts.Program } {
     // remove single quotes which break matching on Windows when glob is passed in single quotes
     exclude = exclude.map(trimSingleQuotes);
@@ -223,49 +239,75 @@ function resolveFilesAndProgram(
         throw new Error(`Invalid option for project: ${project}`);
     }
 
-    exclude = exclude.map((pattern) => path.resolve(pattern));
+    exclude = exclude.map(pattern => path.resolve(pattern));
     const program = Linter.createProgram(projectPath);
     let filesFound: string[];
     if (files.length === 0) {
         filesFound = filterFiles(Linter.getFileNames(program), exclude, false);
     } else {
-        files = files.map((f) => path.resolve(f));
-        filesFound = filterFiles(program.getSourceFiles().map((f) => f.fileName), files, true);
+        files = files.map(f => path.resolve(f));
+        filesFound = filterFiles(
+            program.getSourceFiles().map(f => f.fileName),
+            files,
+            true
+        );
         filesFound = filterFiles(filesFound, exclude, false);
 
         // find non-glob files that have no matching file in the project and are not excluded by any exclude pattern
         for (const file of filterFiles(files, exclude, false)) {
-            if (!glob.hasMagic(file) && !filesFound.some(createMinimatchFilter(file))) {
+            if (
+                !glob.hasMagic(file) &&
+                !filesFound.some(createMinimatchFilter(file))
+            ) {
                 if (fs.existsSync(file)) {
                     throw new Error(`'${file}' is not included in project.`);
                 }
                 // TODO make this an error in v6.0.0
-                logger.error(`'${file}' does not exist. This will be an error in TSLint 6.\n`);
+                logger.error(
+                    `'${file}' does not exist. This will be an error in TSLint 6.\n`
+                );
             }
         }
     }
     return { files: filesFound, program };
 }
 
-function filterFiles(files: string[], patterns: string[], include: boolean): string[] {
+function filterFiles(
+    files: string[],
+    patterns: string[],
+    include: boolean
+): string[] {
     if (patterns.length === 0) {
         return include ? [] : files;
     }
     // `glob` always enables `dot` for ignore patterns
-    const matcher = patterns.map((pattern) => new Minimatch(pattern, { dot: !include }));
-    return files.filter((file) => include === matcher.some((pattern) => pattern.match(file)));
+    const matcher = patterns.map(
+        pattern => new Minimatch(pattern, { dot: !include })
+    );
+    return files.filter(
+        file => include === matcher.some(pattern => pattern.match(file))
+    );
 }
 
-async function doLinting(options: Options, files: string[], program: ts.Program | undefined, logger: Logger): Promise<LintResult> {
+async function doLinting(
+    options: Options,
+    files: string[],
+    program: ts.Program | undefined,
+    logger: Logger
+): Promise<LintResult> {
     const linter = new Linter(
         {
             fix: false,
             rulesDirectory: options.rulesDirectory,
         },
-        program);
+        program
+    );
 
     let lastFolder: string | undefined;
-    let configFile = options.config !== undefined ? findConfiguration(options.config).results : undefined;
+    let configFile =
+        options.config !== undefined
+            ? findConfiguration(options.config).results
+            : undefined;
 
     for (const file of files) {
         if (options.config === undefined) {
@@ -279,9 +321,10 @@ async function doLinting(options: Options, files: string[], program: ts.Program 
             continue;
         }
 
-        const contents = program !== undefined
-            ? program.getSourceFile(file)!.text
-            : await tryReadFile(file, logger);
+        const contents =
+            program !== undefined
+                ? program.getSourceFile(file)!.text
+                : await tryReadFile(file, logger);
 
         if (contents !== undefined) {
             linter.lint(file, contents, configFile);
@@ -291,28 +334,40 @@ async function doLinting(options: Options, files: string[], program: ts.Program 
     return linter.getResult();
 
     function isFileExcluded(filepath: string) {
-        if (configFile === undefined || configFile.linterOptions == undefined || configFile.linterOptions.exclude == undefined) {
+        if (
+            configFile === undefined ||
+            configFile.linterOptions == undefined ||
+            configFile.linterOptions.exclude == undefined
+        ) {
             return false;
         }
         const fullPath = path.resolve(filepath);
-        return configFile.linterOptions.exclude.some((pattern: any) => new Minimatch(pattern).match(fullPath));
+        return configFile.linterOptions.exclude.some((pattern: any) =>
+            new Minimatch(pattern).match(fullPath)
+        );
     }
 }
 
-export const insertTslintDisableComments = (program: ts.Program, result: LintResult) => {
+export const insertTslintDisableComments = (
+    program: ts.Program,
+    result: LintResult
+) => {
     const filesAndFixes = new Map<string, Array<[number, Replacement]>>();
-    result.failures.forEach((input) => {
+    result.failures.forEach(input => {
         const fileName = input.getFileName();
         const line = input.getStartPosition().getLineAndCharacter().line;
         const sourceFile = program.getSourceFile(fileName)!;
         const insertPos = sourceFile.getLineStarts()[line];
         const maybeIndent = /^\s*/.exec(sourceFile.text.substring(insertPos));
         const indent = maybeIndent != undefined ? maybeIndent[0] : "";
-        const fix = Replacement.appendText(insertPos, `${indent}// tslint:disable-next-line\n`);
+        const fix = Replacement.appendText(
+            insertPos,
+            `${indent}// tslint:disable-next-line\n`
+        );
         const fixes = filesAndFixes.get(fileName);
         if (fixes == undefined) {
             filesAndFixes.set(fileName, [[line, fix]]);
-        } else if (fixes.findIndex((oldfix) => oldfix[0] === line) < 0) {
+        } else if (fixes.findIndex(oldfix => oldfix[0] === line) < 0) {
             fixes.push([line, fix]);
             filesAndFixes.set(fileName, fixes);
         }
@@ -322,7 +377,10 @@ export const insertTslintDisableComments = (program: ts.Program, result: LintRes
     const updatedSources = new Map<string, string>();
     filesAndFixes.forEach((fixes, filename) => {
         const source = fs.readFileSync(filename).toString();
-        updatedSources.set(filename, Replacement.applyAll(source, fixes.map((x) => x[1])));
+        updatedSources.set(
+            filename,
+            Replacement.applyAll(source, fixes.map(x => x[1]))
+        );
     });
 
     return updatedSources;
@@ -335,7 +393,10 @@ export const writeUpdateSourceFiles = (updatedSources: Map<string, string>) => {
 };
 
 /** Read a file, but return undefined if it is an MPEG '.ts' file. */
-async function tryReadFile(filename: string, logger: Logger): Promise<string | undefined> {
+async function tryReadFile(
+    filename: string,
+    logger: Logger
+): Promise<string | undefined> {
     if (!fs.existsSync(filename)) {
         throw new Error(`Unable to open file: ${filename}`);
     }
@@ -343,7 +404,10 @@ async function tryReadFile(filename: string, logger: Logger): Promise<string | u
     const fd = fs.openSync(filename, "r");
     try {
         fs.readSync(fd, buffer, 0, 256, 0);
-        if (buffer.readInt8(0, true) === 0x47 && buffer.readInt8(188, true) === 0x47) {
+        if (
+            buffer.readInt8(0, true) === 0x47 &&
+            buffer.readInt8(188, true) === 0x47
+        ) {
             // MPEG transport streams use the '.ts' file extension. They use 0x47 as the frame
             // separator, repeating every 188 bytes. It is unlikely to find that pattern in
             // TypeScript source, so tslint ignores files with the specific pattern.
@@ -357,7 +421,11 @@ async function tryReadFile(filename: string, logger: Logger): Promise<string | u
     return fs.readFileSync(filename, "utf8");
 }
 
-function showDiagnostic({ file, start, category, messageText }: ts.Diagnostic, program: ts.Program, outputAbsolutePaths?: boolean): string {
+function showDiagnostic(
+    { file, start, category, messageText }: ts.Diagnostic,
+    program: ts.Program,
+    outputAbsolutePaths?: boolean
+): string {
     let message = ts.DiagnosticCategory[category];
     if (file !== undefined && start !== undefined) {
         const { line, character } = file.getLineAndCharacterOfPosition(start);
@@ -403,10 +471,12 @@ run(
         error(m) {
             process.stdout.write(m);
         },
-    })
-    .then((rc) => {
+    }
+)
+    .then(rc => {
         process.exitCode = rc;
-    }).catch((e) => {
+    })
+    .catch(e => {
         console.error(e);
         process.exitCode = 1;
     });
