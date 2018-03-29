@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as glob from "glob";
 import { filter as createMinimatchFilter, Minimatch } from "minimatch";
 import * as path from "path";
-import { Configuration, Linter, LintResult, Replacement, Utils, RuleFailure } from "tslint";
+import { Configuration, Linter, LintResult, Replacement, Utils } from "tslint";
 import * as ts from "typescript";
 
 const { findConfiguration } = Configuration;
@@ -314,7 +314,9 @@ export const insertTslintDisableComments = (program: ts.Program, result: LintRes
         const line = input.getStartPosition().getLineAndCharacter().line;
         const sourceFile = program.getSourceFile(fileName)!;
         const insertPos = sourceFile.getLineStarts()[line];
-        const fix = Replacement.appendText(insertPos, "// tslint:disable-next-line\n");
+        const maybeIndent = /^\s*/.exec(sourceFile.getText().substring(insertPos));
+        const indent = maybeIndent != undefined ? maybeIndent[0] : "";
+        const fix = Replacement.appendText(insertPos, `${indent}// tslint:disable-next-line\n`);
         const fixes = filesAndFixes.get(fileName);
         if (fixes == undefined) {
             filesAndFixes.set(fileName, [[line, fix]]);
