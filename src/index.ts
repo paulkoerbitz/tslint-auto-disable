@@ -315,7 +315,7 @@ export const insertTslintDisableComments = (program: ts.Program, result: LintRes
         const line = input.getStartPosition().getLineAndCharacter().line;
         const sourceFile = program.getSourceFile(fileName)!;
         const insertPos = sourceFile.getLineStarts()[line];
-        const maybeIndent = /^\s*/.exec(sourceFile.getText().substring(insertPos));
+        const maybeIndent = /^\s*/.exec(sourceFile.text.substring(insertPos));
         const indent = maybeIndent != undefined ? maybeIndent[0] : "";
         const fix = Replacement.appendText(insertPos, `${indent}// tslint:disable-next-line\n`);
         const fixes = filesAndFixes.get(fileName);
