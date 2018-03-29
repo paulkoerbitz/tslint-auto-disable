@@ -10,14 +10,14 @@ import * as ts from "typescript";
 const { findConfiguration } = Configuration;
 const { dedent, arrayify } = Utils;
 
+const TSLINT_AUTO_DISABLE_VERSION = "0.0.1";
+
 interface Argv {
     project: string;
     exclude: string[];
     config?: string;
     help?: boolean;
     rulesDir?: string;
-    format?: string;
-    test?: boolean;
     version?: boolean;
 }
 
@@ -37,10 +37,10 @@ const options: Option[] = [
         type: "string",
         describe: "configuration file",
         description: dedent`
-            The location of the configuration file that tslint will use to
-            determine which rules are activated and what options to provide
-            to the rules. If no option is specified, the config file named
-            tslint.json is used, so long as it exists in the path.
+            The location of the configuration file that tslint-auto-disable
+            will use to determine which rules are activated and what options
+            to provide to the rules. If no option is specified, the config
+            file named tslint.json is used, so long as it exists in the path.
             The format of the file is { rules: { /* rules list */ } },
             where /* rules list */ is a key: value comma-separated list of
             rulename: rule-options pairs. Rule-options can be either a
@@ -59,7 +59,8 @@ const options: Option[] = [
         description: dedent`
             A filename or glob which indicates files to exclude from linting.
             This option can be supplied multiple times if you need multiple
-            globs to indicate which files to exclude.`,
+            globs to indicate which files to exclude.
+            This parameter is forwarded to tslint.`,
     },
     {
         short: "r",
@@ -71,18 +72,8 @@ const options: Option[] = [
             tslint will always check its default rules directory, in
             node_modules/tslint/lib/rules, before checking the user-provided
             rules directory, so rules in the user-provided rules directory
-            with the same name as the base rules will not be loaded.`,
-    },
-    {
-        name: "test",
-        type: "boolean",
-        describe: "test that tslint produces the correct output for the specified directory",
-        description: dedent`
-            Runs tslint on matched directories and checks if tslint outputs
-            match the expected output in .lint files. Automatically loads the
-            tslint.json files in the directories as the configuration file for
-            the tests. See the full tslint documentation for more details on how
-            this can be used to test custom rules.`,
+            with the same name as the base rules will not be loaded.
+            This parameter is forwarded to tslint.`,
     },
     {
         short: "p",
@@ -90,9 +81,10 @@ const options: Option[] = [
         type: "string",
         describe: "tsconfig.json file",
         description: dedent`
-            The path or directory containing a tsconfig.json file that will be
-            used to determine which files will be linted. This flag also enables
-            rules that require the type checker.`,
+        The path or directory containing a tsconfig.json file that will be
+        used to determine which files will be linted. This flag also enables
+        rules that require the type checker.
+        This parameter is forwarded to tslint.`,
     },
 ];
 
@@ -113,7 +105,7 @@ const builtinOptions: Option[] = [
     },
 ];
 
-commander.version(Linter.VERSION, "-v, --version");
+commander.version(TSLINT_AUTO_DISABLE_VERSION, "-v, --version");
 
 for (const option of options) {
     const commanderStr = optionUsageTag(option) + optionParam(option);
@@ -141,10 +133,10 @@ if (parsed.unknown.length !== 0) {
 }
 const argv = commander.opts() as any as Argv;
 
-// if (!(argv.test !== undefined || argv.project !== undefined || commander.args.length > 0)) {
-//     console.error("No files specified. Use --project to lint a project folder.");
-//     process.exit(1);
-// }
+if (argv.project === undefined && commander.args.length <= 0) {
+    console.error("No files specified. Use --project to lint a project folder.");
+    process.exit(1);
+}
 
 export interface Options {
     /**
@@ -404,7 +396,6 @@ run(
         files: arrayify(commander.args),
         project: argv.project,
         rulesDirectory: argv.rulesDir,
-        test: argv.test,
     },
     {
         log(m) {
