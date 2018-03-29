@@ -2,7 +2,9 @@
   "name": "tslint-auto-disable",
   "version": "0.0.1",
   "description": "A command-line tool to automatically insert disable comments for failing TSLint rules",
-  "bin": { "tslint-auto-disable": "dist/src/index.js" },
+  "bin": {
+    "tslint-auto-disable": "bin/tslint-auto-disable"
+  },
   "repository": "git@github.com:paulkoerbitz/tslint-auto-disable.git",
   "author": "Paul Koerbitz <paul.koerbitz@gmail.com>",
   "license": "MIT",
