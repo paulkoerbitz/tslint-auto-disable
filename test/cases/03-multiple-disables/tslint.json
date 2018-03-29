@@ -1,0 +1,7 @@
+{
+    "defaultSeverity": "error",
+    "rules": {
+        "interface-name": true,
+        "no-empty-interface": true
+    }
+}
