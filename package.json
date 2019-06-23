@@ -1,6 +1,6 @@
 {
   "name": "tslint-auto-disable",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A command-line tool to automatically insert disable comments for failing TSLint rules",
   "bin": {
     "tslint-auto-disable": "bin/tslint-auto-disable"
@@ -32,16 +32,15 @@
   "scripts": {
     "test": "ts-node test/runner.ts",
     "build": "tsc",
-    "prepublish": "npm run build",
-    "prepublishOnly": "npm test",
+    "prepublishOnly": "npm test && npm run build",
     "precommit": "lint-staged",
     "prettier:fix": "prettier --write \"src/**/*.ts\""
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-        "tslint --fix -p ./tsconfig.json -c ./tslint.json",
-        "prettier --write",
-        "git add"
+      "tslint --fix -p ./tsconfig.json -c ./tslint.json",
+      "prettier --write",
+      "git add"
     ]
   }
 }

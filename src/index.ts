@@ -9,7 +9,7 @@ import * as ts from "typescript";
 const { findConfiguration } = Configuration;
 const { dedent, arrayify } = Utils;
 
-const TSLINT_AUTO_DISABLE_VERSION = "0.0.1";
+const TSLINT_AUTO_DISABLE_VERSION = "0.0.2";
 
 interface Argv {
     project: string;
