@@ -220,6 +220,13 @@ export async function runReplacement(
     logger: Logger
 ): Promise<Map<string, string>> {
     const { files, program } = resolveFilesAndProgram(options, logger);
+    const diagnostics = ts.getPreEmitDiagnostics(program);
+    if (diagnostics.length !== 0) {
+        const message = diagnostics
+            .map(d => showDiagnostic(d, program))
+            .join("\n");
+        throw new Error(message);
+    }
     const lintResult = await doLinting(options, files, program, logger);
     return insertTslintDisableComments(program, lintResult);
 }
