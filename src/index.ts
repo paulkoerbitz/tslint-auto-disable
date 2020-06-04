@@ -360,9 +360,13 @@ export const insertTslintDisableComments = (
         const insertPos = sourceFile.getLineStarts()[line];
         const maybeIndent = /^\s*/.exec(sourceFile.text.substring(insertPos));
         const indent = maybeIndent != undefined ? maybeIndent[0] : "";
-        const fix = Replacement.appendText(
+
+        const lineEnd = sourceFile.getLineEndOfPosition(insertPos);
+        const fix = Replacement.replaceFromTo(
             insertPos,
-            `${indent}// tslint:disable-next-line\r\n`
+            lineEnd,
+            `${indent}// tslint:disable-next-line\r\n` +
+                input.getRawLines().substring(insertPos, lineEnd)
         );
         const fixes = filesAndFixes.get(fileName);
         if (fixes == undefined) {

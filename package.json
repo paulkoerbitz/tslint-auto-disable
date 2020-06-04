@@ -1,6 +1,6 @@
 {
   "name": "tslint-auto-disable",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A command-line tool to automatically insert disable comments for failing TSLint rules",
   "bin": {
     "tslint-auto-disable": "bin/tslint-auto-disable"
