@@ -198,11 +198,7 @@ export interface Logger {
 }
 
 export async function run(options: Options, logger: Logger): Promise<Status> {
-    try {
-        return await runWorker(options, logger);
-    } catch (error) {
-        return Status.FatalError;
-    }
+    return runWorker(options, logger);
 }
 
 async function runWorker(options: Options, logger: Logger): Promise<Status> {
@@ -356,7 +352,7 @@ export const insertTslintDisableComments = (
     program: ts.Program,
     result: LintResult
 ) => {
-    const filesAndFixes = new Map<string, Array<[number, Replacement]>>();
+    const filesAndFixes = new Map<string, [number, Replacement][]>();
     result.failures.forEach(input => {
         const fileName = input.getFileName();
         const line = input.getStartPosition().getLineAndCharacter().line;
