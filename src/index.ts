@@ -348,6 +348,13 @@ async function doLinting(
     }
 }
 
+function getLineBreak(fileContent: string) {
+    if (fileContent.includes("\r\n")) {
+        return "\r\n";
+    }
+    return "\n";
+}
+
 export const insertTslintDisableComments = (
     program: ts.Program,
     result: LintResult
@@ -364,9 +371,10 @@ export const insertTslintDisableComments = (
         const lineEnd = sourceFile.getLineEndOfPosition(insertPos);
         const fix = Replacement.replaceFromTo(
             insertPos,
-            lineEnd,
-            `${indent}// tslint:disable-next-line\r\n` +
-                input.getRawLines().substring(insertPos, lineEnd)
+            lineEnd + 1,
+            `${indent}// tslint:disable-next-line${getLineBreak(
+                input.getRawLines()
+            )}` + input.getRawLines().substring(insertPos, lineEnd)
         );
         const fixes = filesAndFixes.get(fileName);
         if (fixes == undefined) {
