@@ -362,7 +362,7 @@ export const insertTslintDisableComments = (
         const indent = maybeIndent != undefined ? maybeIndent[0] : "";
         const fix = Replacement.appendText(
             insertPos,
-            `${indent}// tslint:disable-next-line\n`
+            `${indent}// tslint:disable-next-line\r\n`
         );
         const fixes = filesAndFixes.get(fileName);
         if (fixes == undefined) {
