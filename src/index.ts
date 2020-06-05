@@ -216,6 +216,13 @@ export async function runReplacement(
     logger: Logger
 ): Promise<Map<string, string>> {
     const { files, program } = resolveFilesAndProgram(options, logger);
+
+    const lintResult = await doLinting(options, files, program, logger);
+    return insertTslintDisableComments(program, lintResult);
+}
+
+function createTsProgram(projectPath: string) {
+    const program = Linter.createProgram(projectPath);
     const diagnostics = ts.getPreEmitDiagnostics(program);
     if (diagnostics.length !== 0) {
         const message = diagnostics
@@ -223,8 +230,7 @@ export async function runReplacement(
             .join("\n");
         throw new Error(message);
     }
-    const lintResult = await doLinting(options, files, program, logger);
-    return insertTslintDisableComments(program, lintResult);
+    return program;
 }
 
 function resolveFilesAndProgram(
@@ -240,7 +246,7 @@ function resolveFilesAndProgram(
     }
 
     exclude = exclude.map(pattern => path.resolve(pattern));
-    const program = Linter.createProgram(projectPath);
+    const program = createTsProgram(projectPath);
     let filesFound: string[];
     if (files.length === 0) {
         filesFound = filterFiles(Linter.getFileNames(program), exclude, false);
