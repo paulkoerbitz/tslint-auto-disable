@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as glob from "glob";
 import _ from "lodash";
 import * as path from "path";
-import { runReplacement } from "../src/index";
+import { runReplacement } from "../src";
 
 const promisify1 = <T1, R>(
     f: (arg1: T1, cb: (err: NodeJS.ErrnoException, result: R) => void) => void
@@ -28,15 +28,6 @@ const EXPECTED_FILES = [
     "tsconfig.json",
     "tslint.json",
 ];
-
-const logger = {
-    log(m: string) {
-        console.log(m);
-    },
-    error(m: string) {
-        console.error(m);
-    },
-};
 
 // For each test case directory, we expect to find
 // three different files:
@@ -64,11 +55,11 @@ const main = async () => {
                 exclude: [`${testdir}/output.ts`],
             };
             console.log(`running test ${testdir}`);
-            const updatedSources = await runReplacement(options, logger);
+            const updatedSources = await runReplacement(options);
             const expectedSourceBuff = await readfile(`${testdir}/output.ts`);
             const expectedSource = expectedSourceBuff.toString();
             expect(updatedSources.size).to.equal(1);
-            const key = collect(updatedSources.keys()).find((x) =>
+            const key = collect(updatedSources.keys()).find(x =>
                 x.endsWith("input.ts")
             )!;
             expect(updatedSources.get(key)).to.equal(expectedSource);

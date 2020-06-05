@@ -197,27 +197,26 @@ export interface Logger {
     error(message: string): void;
 }
 
-export async function run(options: Options, logger: Logger): Promise<Status> {
-    return runWorker(options, logger);
+export async function run(options: Options): Promise<Status> {
+    return runWorker(options);
 }
 
-async function runWorker(options: Options, logger: Logger): Promise<Status> {
+async function runWorker(options: Options): Promise<Status> {
     if (options.config && !fs.existsSync(options.config)) {
         throw new Error(`Invalid option for configuration: ${options.config}`);
     }
 
-    const updatedSources = await runReplacement(options, logger);
+    const updatedSources = await runReplacement(options);
     writeUpdateSourceFiles(updatedSources);
     return Status.Ok;
 }
 
 export async function runReplacement(
-    options: Options,
-    logger: Logger
+    options: Options
 ): Promise<Map<string, string>> {
-    const { files, program } = resolveFilesAndProgram(options, logger);
+    const { files, program } = resolveFilesAndProgram(options);
 
-    const lintResult = await doLinting(options, files, program, logger);
+    const lintResult = await doLinting(options, files, program);
     return insertTslintDisableComments(program, lintResult);
 }
 
@@ -233,10 +232,11 @@ function createTsProgram(projectPath: string) {
     return program;
 }
 
-function resolveFilesAndProgram(
-    { files, project, exclude }: Options,
-    logger: Logger
-): { files: string[]; program: ts.Program } {
+function resolveFilesAndProgram({
+    files,
+    project,
+    exclude,
+}: Options): { files: string[]; program: ts.Program } {
     // remove single quotes which break matching on Windows when glob is passed in single quotes
     exclude = exclude.map(trimSingleQuotes);
 
@@ -269,7 +269,7 @@ function resolveFilesAndProgram(
                     throw new Error(`'${file}' is not included in project.`);
                 }
                 // TODO make this an error in v6.0.0
-                logger.error(
+                throw new Error(
                     `'${file}' does not exist. This will be an error in TSLint 6.\n`
                 );
             }
@@ -298,8 +298,7 @@ function filterFiles(
 async function doLinting(
     options: Options,
     files: string[],
-    program: ts.Program | undefined,
-    logger: Logger
+    program: ts.Program | undefined
 ): Promise<LintResult> {
     const linter = new Linter(
         {
@@ -330,7 +329,7 @@ async function doLinting(
         const contents =
             program !== undefined
                 ? program.getSourceFile(file)!.text
-                : await tryReadFile(file, logger);
+                : await tryReadFile(file);
 
         if (contents !== undefined) {
             linter.lint(file, contents, configFile);
@@ -412,10 +411,7 @@ export const writeUpdateSourceFiles = (updatedSources: Map<string, string>) => {
 };
 
 /** Read a file, but return undefined if it is an MPEG '.ts' file. */
-async function tryReadFile(
-    filename: string,
-    logger: Logger
-): Promise<string | undefined> {
+async function tryReadFile(filename: string): Promise<string | undefined> {
     if (!fs.existsSync(filename)) {
         throw new Error(`Unable to open file: ${filename}`);
     }
@@ -430,8 +426,7 @@ async function tryReadFile(
             // MPEG transport streams use the '.ts' file extension. They use 0x47 as the frame
             // separator, repeating every 188 bytes. It is unlikely to find that pattern in
             // TypeScript source, so tslint ignores files with the specific pattern.
-            logger.error(`${filename}: ignoring MPEG transport stream\n`);
-            return undefined;
+            throw new Error(`${filename}: ignoring MPEG transport stream\n`);
         }
     } finally {
         fs.closeSync(fd);
@@ -475,23 +470,13 @@ function findTsconfig(project: string): string | undefined {
     }
 }
 
-run(
-    {
-        config: argv.config,
-        exclude: argv.exclude,
-        files: arrayify(commander.args),
-        project: argv.project,
-        rulesDirectory: argv.rulesDir,
-    },
-    {
-        log(m) {
-            process.stdout.write(m);
-        },
-        error(m) {
-            process.stdout.write(m);
-        },
-    }
-)
+run({
+    config: argv.config,
+    exclude: argv.exclude,
+    files: arrayify(commander.args),
+    project: argv.project,
+    rulesDirectory: argv.rulesDir,
+})
     .then(rc => {
         process.exitCode = rc;
     })
