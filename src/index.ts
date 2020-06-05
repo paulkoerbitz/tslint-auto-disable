@@ -365,16 +365,17 @@ export const insertTslintDisableComments = (
         const line = input.getStartPosition().getLineAndCharacter().line;
         const sourceFile = program.getSourceFile(fileName)!;
         const insertPos = sourceFile.getLineStarts()[line];
-        const maybeIndent = /^\s*/.exec(sourceFile.text.substring(insertPos));
-        const indent = maybeIndent != undefined ? maybeIndent[0] : "";
-
         const lineEnd = sourceFile.getLineEndOfPosition(insertPos);
-        const fix = Replacement.replaceFromTo(
+        const maybeIndent = /^\s*/.exec(
+            sourceFile.text.substring(insertPos, lineEnd)
+        );
+
+        const indent = maybeIndent != undefined ? maybeIndent[0] : "";
+        const fix = Replacement.appendText(
             insertPos,
-            lineEnd + 1,
             `${indent}// tslint:disable-next-line${getLineBreak(
-                input.getRawLines()
-            )}` + input.getRawLines().substring(insertPos, lineEnd)
+                sourceFile.text
+            )}`
         );
         const fixes = filesAndFixes.get(fileName);
         if (fixes == undefined) {
@@ -388,7 +389,7 @@ export const insertTslintDisableComments = (
 
     const updatedSources = new Map<string, string>();
     filesAndFixes.forEach((fixes, filename) => {
-        const source = fs.readFileSync(filename).toString();
+        const source = program.getSourceFile(filename)!.text;
         updatedSources.set(
             filename,
             Replacement.applyAll(source, fixes.map(x => x[1]))

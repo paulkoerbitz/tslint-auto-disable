@@ -1,6 +1,6 @@
 {
   "name": "tslint-auto-disable-fork",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "description": "A command-line tool to automatically insert disable comments for failing TSLint rules",
   "bin": {
     "tslint-auto-disable-fork": "bin/tslint-auto-disable-fork"
